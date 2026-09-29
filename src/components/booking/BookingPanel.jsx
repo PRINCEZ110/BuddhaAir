@@ -19,6 +19,7 @@ export default function BookingPanel({ onSearch, compact = false }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    if (form.from === form.to) return
     onSearch?.(form)
   }
 
@@ -39,7 +40,7 @@ export default function BookingPanel({ onSearch, compact = false }) {
         ))}
       </div>
 
-      <div className="ba-booking__grid">
+      <div className="ba-booking__grid" key={`${form.from}-${form.to}`}>
         <div className="ba-field ba-field--span2">
           <label className="ba-field__label" htmlFor={`${compact ? 'm' : 'd'}-from`}>From</label>
           <div className="ba-field__control">
@@ -55,9 +56,11 @@ export default function BookingPanel({ onSearch, compact = false }) {
           <label className="ba-field__label" htmlFor={`${compact ? 'm' : 'd'}-to`}>To</label>
           <div className="ba-field__control">
             <select id={`${compact ? 'm' : 'd'}-to`} className="ba-field__select" value={form.to} onChange={set('to')}>
-              {destinations.map((d) => (
-                <option key={d.id} value={d.code}>{d.name} ({d.code})</option>
-              ))}
+              {destinations
+                .filter((d) => d.code !== form.from)
+                .map((d) => (
+                  <option key={d.id} value={d.code}>{d.name} ({d.code})</option>
+                ))}
             </select>
           </div>
         </div>
@@ -103,9 +106,19 @@ export default function BookingPanel({ onSearch, compact = false }) {
           </div>
         </div>
 
-        <button type="submit" className="ba-btn ba-btn--primary ba-booking__submit">
-          Search Flights
+        <button
+          type="submit"
+          className="ba-btn ba-btn--primary ba-booking__submit"
+          disabled={form.from === form.to}
+        >
+          {form.from === form.to ? 'Choose a different destination' : 'Search Flights'}
         </button>
+
+        {form.from === form.to && (
+          <p className="ba-booking__hint" role="status">
+            Origin and destination are the same.
+          </p>
+        )}
       </div>
     </form>
   )

@@ -49,7 +49,7 @@ const SKY_STATES = [
   { t: 1.0, zenith: '#0a1424', horizon: '#2a2030', sun: '#d4a080' }
 ]
 
-export default function SkyDome({ progressRef }) {
+export default function SkyDome({ progressRef, reducedMotion }) {
   const matRef = useRef()
 
   const uniforms = useMemo(() => ({
@@ -60,7 +60,7 @@ export default function SkyDome({ progressRef }) {
   }), [])
 
   useFrame(() => {
-    const t = progressRef.current
+    const t = reducedMotion ? 0 : progressRef.current
     let i = 0
     while (i < SKY_STATES.length - 1 && SKY_STATES[i + 1].t < t) i++
     const a = SKY_STATES[i]

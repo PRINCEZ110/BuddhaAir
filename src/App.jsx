@@ -6,6 +6,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Loader from './components/loader/Loader'
 import Navbar from './components/navigation/Navbar'
 import Hero from './components/sections/Hero'
+import CinematicRunway from './components/sections/CinematicRunway'
 import Destinations from './components/destinations/Destinations'
 import AircraftShowcase from './components/sections/AircraftShowcase'
 import MountainFlight from './components/sections/MountainFlight'
@@ -19,6 +20,7 @@ import FlightStatus from './components/flight-status/FlightStatus'
 import Footer from './components/footer/Footer'
 import BookingPanel from './components/booking/BookingPanel'
 import BookingModal from './components/booking/BookingModal'
+import BookingResults from './components/booking/BookingResults'
 import { useReducedMotion } from './hooks/useReducedMotion'
 import { useResponsive3D } from './hooks/useResponsive3D'
 import { useReveal } from './hooks/useReveal'
@@ -38,9 +40,12 @@ export default function App() {
   const [navSolid, setNavSolid] = useState(false)
   const [bookingOpen, setBookingOpen] = useState(false)
   const [activeDestination, setActiveDestination] = useState(null)
+  const [searchResult, setSearchResult] = useState(null)
   const [webglOk] = useState(detectWebGL)
 
   const progressRef = useRef(0)
+  const focusRef = useRef({ active: false, x: 0, y: 0, z: 0 })
+  const interactiveRef = useRef({ active: false, yaw: 0, pitch: 0, zoom: 1 })
   const reducedMotion = useReducedMotion()
   const { quality } = useResponsive3D()
   const revealRef = useReveal()
@@ -95,15 +100,38 @@ export default function App() {
   const openBooking = useCallback(() => setBookingOpen(true), [])
   const closeBooking = useCallback(() => setBookingOpen(false), [])
 
+  // Focusing a destination also brings its index card into view, so the
+  // information is reachable without hunting for it.
   const handleDestinationSelect = useCallback((dest) => {
+    if (!dest) return
     setActiveDestination(dest.id)
-    setTimeout(() => setActiveDestination(null), 2600)
+    focusRef.current = { active: true, x: dest.x, y: 2, z: dest.z }
+    requestAnimationFrame(() => {
+      const card = document.querySelector(`.ba-dest-card[data-id="${dest.id}"]`)
+      card?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
   }, [])
 
-  const handleSearch = useCallback(() => {
+  const clearDestinationFocus = useCallback(() => {
+    setActiveDestination(null)
+    focusRef.current = { active: false, x: 0, y: 0, z: 0 }
+  }, [])
+
+  const handleSearch = useCallback((form) => {
+    // Option B — honest demo. Show results rather than silently redirecting
+    // to flight status, and never imply a booking was made.
     closeBooking()
-    document.querySelector('#status')?.scrollIntoView({ behavior: 'smooth' })
+    setSearchResult(form || null)
+    requestAnimationFrame(() => {
+      document.querySelector('#book')?.scrollIntoView({ behavior: 'smooth' })
+    })
   }, [closeBooking])
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') clearDestinationFocus() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [clearDestinationFocus])
 
   return (
     <div ref={revealRef}>
@@ -136,6 +164,9 @@ export default function App() {
                 reducedMotion={reducedMotion}
                 activeDestination={activeDestination}
                 onSelectDestination={handleDestinationSelect}
+                focusedDestination={activeDestination}
+                focusRef={focusRef}
+                interactiveRef={interactiveRef}
               />
             </Suspense>
           </Canvas>
@@ -146,6 +177,14 @@ export default function App() {
 
       <main>
         <Hero started={!loading} onBook={openBooking} />
+
+        <CinematicRunway progressRef={progressRef} reducedMotion={reducedMotion} />
+
+        <Destinations
+          onSelect={handleDestinationSelect}
+          activeId={activeDestination}
+          onClose={clearDestinationFocus}
+        />
 
         <section className="ba-section ba-section--transparent ba-booking" id="book" aria-label="Book a flight" style={{ paddingTop: 40, paddingBottom: 100 }}>
           <div className="ba-container">
@@ -158,11 +197,11 @@ export default function App() {
             <div className="ba-reveal" style={{ maxWidth: 980, margin: '0 auto' }}>
               <BookingPanel onSearch={handleSearch} />
             </div>
+            {searchResult && <BookingResults form={searchResult} onReset={() => setSearchResult(null)} />}
           </div>
         </section>
 
-        <Destinations onSelect={handleDestinationSelect} activeId={activeDestination} />
-        <AircraftShowcase />
+        <AircraftShowcase interactiveRef={interactiveRef} />
         <MountainFlight onDiscover={openBooking} />
         <Stats />
         <Safety />

@@ -184,9 +184,11 @@ function Propeller({ position, mirror = false, propsRef, index }) {
   )
 }
 
-export default function Aircraft({ detail = 'high', propSpeed = 0, ...props }) {
+export default function Aircraft({ detail = 'high', spinRef, interactiveRef, altitudeRef, ...props }) {
   const propsRef = useRef([])
   const gearRef = useRef()
+  const pivot = useRef()
+  const contactRef = useRef()
 
   const livery = useMemo(() => createLiveryTexture(), [])
   const fuselageGeo = useMemo(() => buildFuselageGeometry(), [])
@@ -195,7 +197,7 @@ export default function Aircraft({ detail = 'high', propSpeed = 0, ...props }) {
   const finGeo = useMemo(() => buildTailFinGeometry(), [])
 
   const paintMat = useMemo(() => new THREE.MeshStandardMaterial({
-    map: livery, metalness: 0.18, roughness: 0.32
+    map: livery, metalness: 0.22, roughness: 0.28, envMapIntensity: 1.25
   }), [livery])
 
   const wingMat = useMemo(() => new THREE.MeshStandardMaterial({
@@ -218,11 +220,55 @@ export default function Aircraft({ detail = 'high', propSpeed = 0, ...props }) {
     color: '#1c1f24', metalness: 0.1, roughness: 0.9
   }), [])
 
+  // Release the hand-built resources. R3F disposes the JSX-owned
+  // primitives, but the lathe/wing/fin geometries and the canvas livery
+  // texture are created in useMemo and would otherwise leak on unmount.
+  React.useEffect(() => {
+    return () => {
+      fuselageGeo.dispose()
+      wingGeo.dispose()
+      tailWingGeo.dispose()
+      finGeo.dispose()
+      livery.dispose()
+      paintMat.dispose()
+      wingMat.dispose()
+      metalMat.dispose()
+      darkMat.dispose()
+      redMat.dispose()
+      tireMat.dispose()
+    }
+  }, [fuselageGeo, wingGeo, tailWingGeo, finGeo, livery, paintMat, wingMat, metalMat, darkMat, redMat, tireMat])
+
+  // Propeller angle accumulates from the shared spin rate so spool-up and
+  // shut-down stay in step with the flight path.
+  const angle = useRef(0)
+
+  // Idle auto-orbit during the showcase, overridden by user drag/zoom.
+  const spin = useRef(0)
   useFrame((_, delta) => {
-    if (propSpeed > 0 && propsRef.current) {
-      propsRef.current.forEach((p) => {
-        if (p) p.rotation.y += delta * propSpeed
-      })
+    angle.current += delta * (spinRef?.current ?? 0)
+    for (const p of propsRef.current) {
+      if (p) p.rotation.y = angle.current
+    }
+
+    const iv = interactiveRef?.current
+    if (pivot.current && iv) {
+      const idle = iv.active ? 0 : delta * 0.12
+      spin.current += idle + (iv.yaw - spin.current) * 0.25
+      pivot.current.rotation.y = spin.current
+      pivot.current.rotation.x = iv.pitch
+      const z = iv.zoom
+      pivot.current.scale.setScalar(z)
+    }
+
+    // Contact shadow fades out as the aeroplane leaves the ground.
+    if (contactRef.current) {
+      const alt = altitudeRef?.current ?? 0
+      const k = 1 - THREE.MathUtils.clamp(alt / 26, 0, 1)
+      contactRef.current.material.opacity = k * 0.34
+      contactRef.current.visible = k > 0.02
+      const s = 1 + alt * 0.05
+      contactRef.current.scale.setScalar(s)
     }
   })
 
@@ -230,6 +276,9 @@ export default function Aircraft({ detail = 'high', propSpeed = 0, ...props }) {
 
   return (
     <group {...props}>
+      {/* Interactive pivot: drag/zoom rotate and scale the whole airframe
+          without disturbing the rig that flies it along the path. */}
+      <group ref={pivot}>
       <mesh geometry={fuselageGeo} material={paintMat} castShadow />
 
       <mesh geometry={wingGeo} material={wingMat} position={[0.4, 1.15, 0.9]} castShadow />
@@ -249,6 +298,16 @@ export default function Aircraft({ detail = 'high', propSpeed = 0, ...props }) {
           <meshStandardMaterial color={RED} metalness={0.3} roughness={0.4} />
         </mesh>
       </group>
+
+      {/* Ground contact: without this the aeroplane reads as floating. It
+          only exists near the ground — a dark ellipse trailing an airborne
+          aeroplane is worse than no shadow at all. */}
+      {detail !== 'low' && (
+        <mesh ref={contactRef} position={[0, -1.52, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2}>
+          <circleGeometry args={[7.5, 24]} />
+          <meshBasicMaterial color="#05090f" transparent opacity={0} depthWrite={false} />
+        </mesh>
+      )}
 
       {[-1, 1].map((side) => (
         <group key={side} position={[1.6, 1.35, side * 4.6]}>
@@ -293,10 +352,61 @@ export default function Aircraft({ detail = 'high', propSpeed = 0, ...props }) {
         </group>
       )}
 
-      <mesh position={[11.9, 0.35, 0]} rotation={[0, 0, -0.1]}>
-        <boxGeometry args={[1.6, 0.5, 1.7]} />
-        <meshStandardMaterial color="#0d1626" metalness={0.95} roughness={0.08} />
+      {/* Windshield: a two-pane wrap rather than one dark block. */}
+      <group position={[12.05, 0.42, 0]} rotation={[0, 0, -0.06]}>
+        <mesh rotation={[0.18, 0.06, 0]} position={[0, 0, 0.42]}>
+          <boxGeometry args={[1.15, 0.46, 0.06]} />
+          <meshPhysicalMaterial
+            color="#8fb6d8"
+            metalness={0}
+            roughness={0.06}
+            transmission={0.82}
+            thickness={0.4}
+            transparent
+            opacity={0.72}
+            envMapIntensity={1.4}
+          />
+        </mesh>
+        <mesh rotation={[0.18, -0.06, 0]} position={[0, 0, -0.42]}>
+          <boxGeometry args={[1.15, 0.46, 0.06]} />
+          <meshPhysicalMaterial
+            color="#8fb6d8"
+            metalness={0}
+            roughness={0.06}
+            transmission={0.82}
+            thickness={0.4}
+            transparent
+            opacity={0.72}
+            envMapIntensity={1.4}
+          />
+        </mesh>
+      </group>
+
+      {/* Nav lights: red port, green starboard, white tail. */}
+      <mesh position={[1.2, 0.5, -13.6]}>
+        <sphereGeometry args={[0.16, 8, 8]} />
+        <meshStandardMaterial color="#ff3b30" emissive="#ff2a1f" emissiveIntensity={2.4} toneMapped={false} />
       </mesh>
+      <mesh position={[1.2, 0.5, 13.6]}>
+        <sphereGeometry args={[0.16, 8, 8]} />
+        <meshStandardMaterial color="#2fd45f" emissive="#22c94e" emissiveIntensity={2.4} toneMapped={false} />
+      </mesh>
+      <mesh position={[-13.2, 0.8, 0]}>
+        <sphereGeometry args={[0.13, 8, 8]} />
+        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={2.2} toneMapped={false} />
+      </mesh>
+
+      {/* Panel seams break up the large unbroken fuselage surfaces. The
+          cabin window band is painted into the livery texture — separate
+          glazing meshes here just intersected the hull and z-fought. */}
+      {detail !== 'low' &&
+        [-6.5, -2.0, 2.5, 7.0].map((x) => (
+          <mesh key={`s${x}`} position={[x, 0, 0]}>
+            <torusGeometry args={[1.37, 0.035, 4, 28]} />
+            <meshStandardMaterial color="#c9ced6" metalness={0.35} roughness={0.55} />
+          </mesh>
+        ))}
+      </group>
     </group>
   )
 }

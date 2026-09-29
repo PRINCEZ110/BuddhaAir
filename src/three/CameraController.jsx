@@ -1,108 +1,171 @@
 import { useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
+import { getAircraftState } from './timeline/aircraftPath'
 
+/**
+ * Camera keyframes are authored against the MEASURED scroll timeline, not
+ * guessed. Re-run `npm run verify:layout` after any section height change
+ * and re-check these numbers.
+ *
+ * `orbit` keyframes are resolved against the shared aircraft path so the
+ * camera can never frame a point the aeroplane is not at. `look` keyframes
+ * are absolute. The Himalaya ridge geometry sits at -Z, so the 0.292 beat
+ * deliberately looks -Z.
+ */
 const KEYFRAMES = [
-  { t: 0.0, pos: [46, 6.5, 46], look: [0, 5, 0], fov: 40 },
-  { t: 0.05, pos: [34, 6.2, 33], look: [0, 5, 0], fov: 40 },
-  { t: 0.11, pos: [34, 11, 52], look: [70, 13, 0], fov: 46 },
-  { t: 0.17, pos: [70, 54, 90], look: [180, 70, 0], fov: 50 },
-  { t: 0.23, pos: [120, 156, 210], look: [340, 110, 0], fov: 52 },
-  { t: 0.29, pos: [80, 182, 280], look: [420, 130, 0], fov: 55 },
-  { t: 0.36, pos: [0, 120, 152], look: [0, 6, 0], fov: 50 },
-  { t: 0.4, pos: [26, 18, 30], look: [0, 4, 0], fov: 46 },
-  { t: 0.46, pos: [50, 30, 52], look: [0, 4, 0], fov: 44 },
-  { t: 0.52, pos: [-40, 24, 44], look: [0, 4, 0], fov: 44 },
-  { t: 0.56, pos: [0, 10, 17], look: [0, 15, -330], fov: 58 },
-  { t: 0.62, pos: [0, 32, 92], look: [0, 16, 0], fov: 50 },
-  { t: 0.72, pos: [0, 17, 52], look: [0, 8, 0], fov: 46 },
-  { t: 0.85, pos: [0, 25, 82], look: [0, 10, 0], fov: 48 },
-  { t: 1.0, pos: [0, 28, 88], look: [0, 12, 0], fov: 48 }
+  { t: 0.000, pos: [46, 6.5, 46], look: [0, 5, 0], fov: 40 },
+  { t: 0.052, pos: [31, 5.2, 30], look: [0, 4.5, 0], fov: 40 },
+  { t: 0.112, pos: [34, 8, 54], look: [30, 5, 0], fov: 44 },
+  { t: 0.160, pos: [40, 13, 62], look: [58, 6, 0], fov: 48 },
+  { t: 0.210, pos: [48, 58, 96], look: [118, 62, 0], fov: 52 },
+  { t: 0.258, pos: [30, 128, 150], look: [150, 122, -80], fov: 54 },
+  // Himalayas: look -Z at the ridge, aircraft held in frame.
+  { t: 0.305, pos: [104, 168, 236], look: [186, 150, -760], fov: 58 },
+  { t: 0.342, pos: [120, 205, 205], look: [55, 15, -20], fov: 55 },
+  // Destination index runs 0.388 - 0.537: hold a high map view so the
+  // terrain, nodes and routes stay readable behind the cards.
+  { t: 0.400, pos: [30, 195, 185], look: [10, 0, 0], fov: 50 },
+  { t: 0.470, pos: [10, 165, 155], look: [0, 0, 0], fov: 48 },
+  { t: 0.537, pos: [30, 150, 150], look: [10, 0, 0], fov: 48 },
+  // Fleet showcase runs 0.575 - 0.628: orbit the aircraft itself.
+  { t: 0.580, orbit: [42, 20, 48], fov: 46 },
+  { t: 0.610, orbit: [-40, 22, 52], fov: 44 },
+  { t: 0.628, orbit: [-26, 12, 38], fov: 46 },
+  // Mountain flight 0.628 - 0.669. The camera sits at the window seat and
+  // looks out over the ridge, which lives at -Z.
+  { t: 0.648, pos: [268, 132, 24], look: [352, 128, -520], fov: 60 },
+  { t: 0.672, pos: [40, 175, 235], look: [10, 30, 0], fov: 48 },
+  { t: 0.750, pos: [90, 150, 300], look: [0, 20, 0], fov: 46 },
+  { t: 0.900, pos: [120, 160, 330], look: [0, 25, 0], fov: 47 },
+  { t: 1.000, pos: [130, 165, 345], look: [0, 25, 0], fov: 48 }
 ]
 
+// Fog density is deliberately low. At the previous values (0.0013-0.0016)
+// the 2.2-4.5 km mountain ranges evaluated to ~100% fog, so they rendered
+// as flat paper-white cut-outs with no rock, no depth and no shading. These
+// values leave real atmospheric perspective without erasing the terrain.
 const LIGHT_STATES = [
-  { t: 0.0, sun: '#ffb36b', sunI: 2.6, amb: '#8fa8c8', ambI: 0.5, fog: '#c8d4e4', fogD: 0.0016, sky: '#a8c4e0' },
-  { t: 0.11, sun: '#ffd9a8', sunI: 3.0, amb: '#a8bdd8', ambI: 0.55, fog: '#d4e0ee', fogD: 0.0013, sky: '#bcd4ec' },
-  { t: 0.23, sun: '#e8f0ff', sunI: 2.8, amb: '#b8cce4', ambI: 0.6, fog: '#dce8f4', fogD: 0.0011, sky: '#c4dcf2' },
-  { t: 0.32, sun: '#ffc98a', sunI: 2.4, amb: '#9ab4d4', ambI: 0.5, fog: '#e8ddc8', fogD: 0.0014, sky: '#c8d4e8' },
-  { t: 0.44, sun: '#fff2dc', sunI: 3.0, amb: '#b0c4dc', ambI: 0.55, fog: '#d8e4f0', fogD: 0.0012, sky: '#c0d8ee' },
-  { t: 0.56, sun: '#ffd9a0', sunI: 2.2, amb: '#8aa4c4', ambI: 0.45, fog: '#d0dae8', fogD: 0.0015, sky: '#b4cce4' },
-  { t: 0.7, sun: '#e8b8a0', sunI: 1.4, amb: '#5a708c', ambI: 0.35, fog: '#2a3a55', fogD: 0.0028, sky: '#1a2a45' },
-  { t: 1.0, sun: '#d4a080', sunI: 1.0, amb: '#4a5f7c', ambI: 0.3, fog: '#141f35', fogD: 0.0035, sky: '#0e1a2e' }
+  { t: 0.0, sun: '#ffb36b', sunI: 2.4, amb: '#8fa8c8', ambI: 0.42, fog: '#c8d4e4', fogD: 0.00024, sky: '#a8c4e0' },
+  { t: 0.11, sun: '#ffd9a8', sunI: 2.7, amb: '#a8bdd8', ambI: 0.45, fog: '#d4e0ee', fogD: 0.00021, sky: '#bcd4ec' },
+  { t: 0.21, sun: '#e8f0ff', sunI: 2.5, amb: '#b8cce4', ambI: 0.48, fog: '#dce8f4', fogD: 0.00018, sky: '#c4dcf2' },
+  { t: 0.30, sun: '#ffc98a', sunI: 2.2, amb: '#9ab4d4', ambI: 0.42, fog: '#e0d8c8', fogD: 0.00017, sky: '#c8d4e8' },
+  { t: 0.40, sun: '#fff2dc', sunI: 2.6, amb: '#b0c4dc', ambI: 0.45, fog: '#d8e4f0', fogD: 0.00022, sky: '#c0d8ee' },
+  { t: 0.56, sun: '#ffd9a0', sunI: 2.1, amb: '#8aa4c4', ambI: 0.4, fog: '#d0dae8', fogD: 0.00028, sky: '#b4cce4' },
+  { t: 0.66, sun: '#ffe0b0', sunI: 2.0, amb: '#93aac6', ambI: 0.44, fog: '#d8dcea', fogD: 0.0004, sky: '#bcd0e6' },
+  { t: 0.78, sun: '#e8b8a0', sunI: 1.4, amb: '#5a708c', ambI: 0.35, fog: '#2a3a55', fogD: 0.0012, sky: '#1a2a45' },
+  { t: 1.0, sun: '#d4a080', sunI: 1.0, amb: '#4a5f7c', ambI: 0.3, fog: '#141f35', fogD: 0.0016, sky: '#0e1a2e' }
 ]
 
-function sampleKeyframes(t, frames, key) {
+const smoothstep = (u) => u * u * (3 - 2 * u)
+
+function bracket(t, frames) {
   let i = 0
   while (i < frames.length - 1 && frames[i + 1].t < t) i++
   const a = frames[i]
   const b = frames[Math.min(i + 1, frames.length - 1)]
   const span = b.t - a.t
   const local = span > 0 ? THREE.MathUtils.clamp((t - a.t) / span, 0, 1) : 0
-  const eased = local * local * (3 - 2 * local)
-  return { a, b, eased }
+  return { a, b, e: smoothstep(local) }
 }
 
 const _pos = new THREE.Vector3()
 const _look = new THREE.Vector3()
-const _sunColor = new THREE.Color()
-const _ambColor = new THREE.Color()
-const _fogColor = new THREE.Color()
-const _skyColor = new THREE.Color()
+const _from = new THREE.Vector3()
+const _to = new THREE.Vector3()
+const _tmp = new THREE.Vector3()
+const _c1 = new THREE.Color()
+const _c2 = new THREE.Color()
 
-export default function CameraController({ progressRef, reducedMotion }) {
-  const { camera, scene } = useThree()
+export default function CameraController({ progressRef, reducedMotion, focusRef }) {
+  const { camera, scene, size } = useThree()
   const smooth = useRef(0)
-  const lookTarget = useRef(new THREE.Vector3(0, 3.5, 0))
+  const lookTarget = useRef(new THREE.Vector3(0, 5, 0))
+  const focusMix = useRef(0)
 
   useFrame((_, delta) => {
+    // Reduced motion pins the whole rig to the hero state; Experience
+    // separately freezes scene visibility so nothing toggles underneath.
     const target = reducedMotion ? 0 : progressRef.current
-    smooth.current = THREE.MathUtils.damp(smooth.current, target, reducedMotion ? 10 : 3.2, delta)
+    smooth.current = THREE.MathUtils.damp(smooth.current, target, reducedMotion ? 10 : 3.4, delta)
     const t = smooth.current
 
-    const { a, b, eased } = sampleKeyframes(t, KEYFRAMES)
-    _pos.set(
-      THREE.MathUtils.lerp(a.pos[0], b.pos[0], eased),
-      THREE.MathUtils.lerp(a.pos[1], b.pos[1], eased),
-      THREE.MathUtils.lerp(a.pos[2], b.pos[2], eased)
-    )
-    _look.set(
-      THREE.MathUtils.lerp(a.look[0], b.look[0], eased),
-      THREE.MathUtils.lerp(a.look[1], b.look[1], eased),
-      THREE.MathUtils.lerp(a.look[2], b.look[2], eased)
-    )
+    // Portrait framing: pull back so a 27 m wingspan still fits a 360 px
+    // viewport instead of being cropped by the narrow horizontal FOV.
+    const aspect = size.width / Math.max(1, size.height)
+    const dist = aspect < 1 ? THREE.MathUtils.clamp(1 / aspect, 1, 1.85) : 1
+    const fovBoost = aspect < 1 ? 4 : 0
+
+    const { a, b, e } = bracket(t, KEYFRAMES)
+    const plane = getAircraftState(t)
+
+    // Resolve endpoints: either an absolute pos/look or an aircraft orbit.
+    const resolve = (k, outPos, outLook) => {
+      if (k.orbit) {
+        const ap = getAircraftState(k.t)
+        outPos.set(ap.x + k.orbit[0], ap.y + k.orbit[1], ap.z + k.orbit[2])
+        outLook.set(ap.x, ap.y, ap.z)
+      } else {
+        outPos.fromArray(k.pos)
+        outLook.fromArray(k.look)
+      }
+    }
+    resolve(a, _from, _to)
+    const aPosX = _from.x, aPosY = _from.y, aPosZ = _from.z
+    const aLookX = _to.x, aLookY = _to.y, aLookZ = _to.z
+    resolve(b, _from, _to)
+    _pos.set(THREE.MathUtils.lerp(aPosX, _from.x, e), THREE.MathUtils.lerp(aPosY, _from.y, e), THREE.MathUtils.lerp(aPosZ, _from.z, e))
+    _look.set(THREE.MathUtils.lerp(aLookX, _to.x, e), THREE.MathUtils.lerp(aLookY, _to.y, e), THREE.MathUtils.lerp(aLookZ, _to.z, e))
+    const fov = THREE.MathUtils.lerp(a.fov ?? 45, b.fov ?? 45, e) + fovBoost
+
+    // Destination focus overrides the timeline and blends back out.
+    const focus = focusRef?.current
+    const wantFocus = !reducedMotion && focus && focus.active
+    focusMix.current = THREE.MathUtils.damp(focusMix.current, wantFocus ? 1 : 0, 4.5, delta)
+    if (focusMix.current > 0.001 && focus) {
+      const target = new THREE.Vector3(focus.x, focus.y + 6, focus.z)
+      const camTo = target.clone().add(new THREE.Vector3(74, 46, 86))
+      _pos.lerp(camTo, focusMix.current)
+      _look.lerp(target, focusMix.current)
+    }
+
+    // Push the whole rig back from its look target on portrait.
+    if (dist !== 1) {
+      _tmp.subVectors(_pos, _look).multiplyScalar(dist)
+      _pos.copy(_look).add(_tmp)
+    }
 
     camera.position.copy(_pos)
     lookTarget.current.lerp(_look, 1 - Math.exp(-4 * delta))
     camera.lookAt(lookTarget.current)
 
-    const targetFov = THREE.MathUtils.lerp(a.fov, b.fov, eased)
+    const targetFov = wantFocus ? 42 + fovBoost : fov
     if (Math.abs(camera.fov - targetFov) > 0.01) {
       camera.fov = targetFov
       camera.updateProjectionMatrix()
     }
 
-    const ls = sampleKeyframes(t, LIGHT_STATES)
-    _sunColor.set(ls.a.sun).lerp(_skyColor.set(ls.b.sun), ls.eased)
-    _ambColor.set(ls.a.amb).lerp(new THREE.Color(ls.b.amb), ls.eased)
-    _fogColor.set(ls.a.fog).lerp(new THREE.Color(ls.b.fog), ls.eased)
-
+    // Lighting, fog and sky all sampled from the same value as the camera.
+    const ls = bracket(t, LIGHT_STATES)
     const sun = scene.getObjectByName('ba-sun')
     if (sun) {
-      sun.color.copy(_sunColor)
-      sun.intensity = THREE.MathUtils.lerp(ls.a.sunI, ls.b.sunI, ls.eased)
+      sun.color.set(ls.a.sun).lerp(_c2.set(ls.b.sun), ls.e)
+      sun.intensity = THREE.MathUtils.lerp(ls.a.sunI, ls.b.sunI, ls.e)
     }
     const amb = scene.getObjectByName('ba-amb')
     if (amb) {
-      amb.color.copy(_ambColor)
-      amb.intensity = THREE.MathUtils.lerp(ls.a.ambI, ls.b.ambI, ls.eased)
+      amb.color.set(ls.a.amb).lerp(_c2.set(ls.b.amb), ls.e)
+      amb.intensity = THREE.MathUtils.lerp(ls.a.ambI, ls.b.ambI, ls.e)
     }
     if (scene.fog) {
-      scene.fog.color.copy(_fogColor)
-      scene.fog.density = THREE.MathUtils.lerp(ls.a.fogD, ls.b.fogD, ls.eased)
+      scene.fog.color.set(ls.a.fog).lerp(_c2.set(ls.b.fog), ls.e)
+      scene.fog.density = THREE.MathUtils.lerp(ls.a.fogD, ls.b.fogD, ls.e)
     }
     if (scene.background) {
-      scene.background.copy(_skyColor.set(ls.a.sky).lerp(new THREE.Color(ls.b.sky), ls.eased))
+      scene.background.set(ls.a.sky).lerp(_c2.set(ls.b.sky), ls.e)
     }
+    void plane
+    void _c1
   })
 
   return null

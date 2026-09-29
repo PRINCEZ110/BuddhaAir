@@ -396,6 +396,80 @@ ul { list-style: none; }
 
 .ba-loader__ready--show { opacity: 1; }
 
+/* ---------- Cinematic runway ----------
+   Transparent scroll distance carrying the camera from hero to the
+   destination index. Height is calibrated against the real measured page
+   (see `npm run verify:layout`); --cinematic-height maps so that the last
+   chapter lands on the destination section. */
+.ba-cinematic {
+  position: relative;
+  z-index: 1;
+  height: var(--cinematic-height, 680vh);
+  pointer-events: none;
+}
+
+.ba-chapters {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s linear;
+}
+
+.ba-chapter {
+  position: absolute;
+  left: max(5vw, 24px);
+  bottom: 15vh;
+  margin: 0;
+  max-width: min(540px, 74vw);
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+.ba-chapter__kicker {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--ba-sky-light);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.6);
+}
+
+.ba-chapter__kicker::before {
+  content: '';
+  display: inline-block;
+  width: 28px;
+  height: 1px;
+  margin-right: 12px;
+  vertical-align: middle;
+  background: var(--ba-red);
+}
+
+.ba-chapter__line {
+  display: block;
+  margin-top: 14px;
+  font-family: var(--font-display);
+  font-size: clamp(26px, 3.6vw, 46px);
+  font-weight: 500;
+  line-height: 1.14;
+  text-shadow: 0 4px 34px rgba(0, 0, 0, 0.55);
+}
+
+/* Screen-reader-only content */
+.ba-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ---------- Canvas ---------- */
 .ba-canvas-wrap {
   position: fixed;
@@ -711,6 +785,301 @@ ul { list-style: none; }
 }
 
 .ba-dest-card:hover .ba-dest-card__explore { color: var(--ba-red); }
+
+/* ---------- Mountain flight ---------- */
+.ba-mf {
+  display: flex;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.ba-mf__copy {
+  max-width: 480px;
+  padding: 36px 32px;
+  border-radius: 12px;
+  background: linear-gradient(160deg, rgba(8, 18, 34, 0.86), rgba(8, 18, 34, 0.6));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ba-mf__note {
+  margin-top: 24px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ba-grey);
+  max-width: 420px;
+}
+
+/* ---------- Focus card ---------- */
+.ba-focus {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 28px;
+}
+
+.ba-focus__card {
+  position: relative;
+  width: min(520px, 100%);
+  padding: 30px 32px 28px;
+  border-radius: 12px;
+  background: rgba(9, 20, 38, 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  animation: ba-focus-in 0.5s var(--ease-cinematic) both;
+}
+
+@keyframes ba-focus-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.ba-focus__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ba-sky);
+  transition: color 0.25s;
+}
+
+.ba-focus__back:hover { color: #fff; }
+
+.ba-focus__code {
+  display: inline-block;
+  padding: 5px 11px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #fff;
+  background: rgba(212, 43, 43, 0.9);
+}
+
+.ba-focus__name {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 500;
+  margin-top: 14px;
+}
+
+.ba-focus__desc {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.ba-focus__meta {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ba-focus__meta dt {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ba-sky);
+}
+
+.ba-focus__meta dd {
+  margin-top: 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ba-focus__note {
+  margin-top: 20px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--ba-grey);
+}
+
+/* ---------- Aircraft showcase interaction ---------- */
+.ba-showcase {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.ba-showcase__hit {
+  position: absolute;
+  left: 50%;
+  top: 8%;
+  width: min(760px, 92vw);
+  height: 62%;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: pan-y;
+  border-radius: 12px;
+}
+
+.ba-showcase__hit:active { cursor: grabbing; }
+
+.ba-showcase__hint {
+  position: absolute;
+  left: 50%;
+  bottom: 4%;
+  transform: translateX(-50%);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  transition: opacity 0.4s;
+  pointer-events: none;
+}
+
+.ba-showcase__reset {
+  position: absolute;
+  right: max(4vw, 24px);
+  bottom: 3.4%;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: rgba(10, 22, 40, 0.5);
+  backdrop-filter: blur(8px);
+  transition: color 0.25s, border-color 0.25s;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.ba-showcase__reset:hover { color: #fff; border-color: rgba(255, 255, 255, 0.5); }
+
+#fleet .ba-container { position: relative; z-index: 2; }
+
+/* ---------- Booking results ---------- */
+.ba-results {
+  max-width: 980px;
+  margin: 40px auto 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(11, 23, 42, 0.86);
+  backdrop-filter: blur(16px);
+  overflow: hidden;
+  animation: ba-focus-in 0.5s var(--ease-cinematic) both;
+}
+
+.ba-results__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 26px 28px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ba-results__title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 500;
+  margin-top: 12px;
+}
+
+.ba-results__title em { color: var(--ba-red); font-style: normal; }
+
+.ba-results__meta {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--ba-grey);
+}
+
+.ba-results__reset {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ba-sky);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 8px 16px;
+  transition: color 0.25s, border-color 0.25s;
+}
+
+.ba-results__reset:hover { color: #fff; border-color: rgba(255, 255, 255, 0.45); }
+
+.ba-results__notice {
+  padding: 16px 28px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #f0d9a8;
+  background: rgba(217, 164, 65, 0.1);
+  border-bottom: 1px solid rgba(217, 164, 65, 0.2);
+}
+
+.ba-results__notice strong { color: var(--ba-gold); }
+
+.ba-results__row {
+  display: grid;
+  grid-template-columns: 64px 70px 1fr 70px 120px 70px;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 28px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 13.5px;
+}
+
+.ba-results__row:last-child { border-bottom: none; }
+
+.ba-results__no { font-weight: 700; color: #fff; }
+.ba-results__time, .ba-results__arr { font-variant-numeric: tabular-nums; }
+.ba-results__dur { color: var(--ba-grey); font-size: 12.5px; }
+
+.ba-results__avail {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ba-results__avail.is-ok { color: #4ade80; }
+.ba-results__avail.is-limited { color: var(--ba-gold); }
+
+.ba-results__cta {
+  text-align: right;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ba-red);
+}
+
+.ba-booking__hint {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--ba-gold);
+  text-align: center;
+}
+
+.ba-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+@media (max-width: 640px) {
+  .ba-results__row {
+    grid-template-columns: 56px 1fr 1fr;
+    gap: 8px 12px;
+  }
+  .ba-results__dur { display: none; }
+  .ba-focus__meta { grid-template-columns: 1fr; gap: 12px; }
+}
 
 /* ---------- Booking ---------- */
 .ba-booking {

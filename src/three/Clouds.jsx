@@ -82,38 +82,46 @@ function CloudLayer({ position, scale, opacity, speed, color, sunDir }) {
   })
 
   return (
-    <mesh position={position} scale={scale}>
-      <planeGeometry args={[1, 1, 1, 1]} />
-      <shaderMaterial
-        ref={matRef}
-        vertexShader={cloudVertex}
-        fragmentShader={cloudFragment}
-        uniforms={uniforms}
-        transparent
-        depthWrite={false}
-        side={THREE.DoubleSide}
-      />
-    </mesh>
+    <group position={position} scale={scale}>
+      {[0, Math.PI / 2].map((rot) => (
+        <mesh key={rot} rotation={[0, rot, 0]}>
+          <planeGeometry args={[1, 1, 1, 1]} />
+          <shaderMaterial
+            ref={rot === 0 ? matRef : undefined}
+            vertexShader={cloudVertex}
+            fragmentShader={cloudFragment}
+            uniforms={uniforms}
+            transparent
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      ))}
+    </group>
   )
 }
 
 export default function Clouds({ quality = 'high', mode = 'layers' }) {
+  // Two crossed quads per puff. A single camera-facing quad degenerates
+  // into a grey streak whenever the camera moves off its normal — that is
+  // what turned the cloud sea into a smear. Crossed quads stay volumetric
+  // enough from any horizontal angle for the cost of 2 extra triangles.
   const layers = useMemo(() => {
     if (mode === 'sea') {
-      return Array.from({ length: quality === 'low' ? 4 : 7 }).map((_, i) => ({
+      return Array.from({ length: quality === 'low' ? 3 : 5 }).map((_, i) => ({
         key: i,
-        position: [(i % 2 ? -1 : 1) * (140 + i * 55), -30 - (i % 3) * 22, -180 - i * 90],
-        scale: [420 + i * 60, 130 + i * 18, 1],
-        opacity: 0.5 + (i % 3) * 0.14,
+        position: [(i % 2 ? -1 : 1) * (120 + i * 70), -54 - (i % 3) * 30, -220 - i * 110],
+        scale: [300 + i * 54, 96 + i * 16, 1],
+        opacity: 0.46 + (i % 3) * 0.12,
         speed: 0.5 + (i % 4) * 0.22,
         color: i % 2 ? '#f4f8fd' : '#e6eef8'
       }))
     }
-    return Array.from({ length: quality === 'low' ? 3 : 5 }).map((_, i) => ({
+    return Array.from({ length: quality === 'low' ? 2 : 4 }).map((_, i) => ({
       key: i,
-      position: [(i % 2 ? -1 : 1) * (180 + i * 70), 60 + i * 42, -260 - i * 110],
-      scale: [520 + i * 70, 150 + i * 20, 1],
-      opacity: 0.42 + (i % 3) * 0.13,
+      position: [(i % 2 ? -1 : 1) * (150 + i * 90), 40 + i * 26, -300 - i * 150],
+      scale: [440 + i * 70, 120 + i * 18, 1],
+      opacity: 0.4 + (i % 3) * 0.12,
       speed: 0.4 + (i % 4) * 0.2,
       color: i % 2 ? '#f6fafe' : '#e9f1fa'
     }))

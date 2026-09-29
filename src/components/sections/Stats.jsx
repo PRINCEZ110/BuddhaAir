@@ -16,7 +16,9 @@ function Counter({ value, suffix, start }) {
     const t0 = performance.now()
     const dur = 1800
     const tick = (now) => {
-      const p = Math.min(1, (now - t0) / dur)
+      // Clamp both ends: a rAF timestamp can land before t0 under throttling,
+      // which produced negative easing and counters rendering as -27M.
+      const p = Math.max(0, Math.min(1, (now - t0) / dur))
       const e = 1 - Math.pow(1 - p, 3)
       setDisplay(Math.round(value * e))
       if (p < 1) raf = requestAnimationFrame(tick)

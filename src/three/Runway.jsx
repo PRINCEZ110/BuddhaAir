@@ -54,17 +54,61 @@ function createRunwayTexture() {
 
 export default function Runway({ length = 420, width = 30 }) {
   const tex = useMemo(() => createRunwayTexture(), [])
+  const postRef = React.useRef(null)
+  const lampRef = React.useRef(null)
 
-  const lights = useMemo(() => {
-    const arr = []
+  React.useEffect(() => () => tex.dispose(), [tex])
+
+  // Edge lights and gantry posts are instanced. As individual meshes they
+  // were ~124 separate draw calls in the hero alone — the busiest frame in
+  // the whole experience, for objects that never move.
+  const { postGeo, lampGeo, postMesh, lampMesh, setMatrices } = useMemo(() => {
     const rows = 26
+    const m = new THREE.Matrix4()
+    const posts = []
+    const lamps = []
     for (let i = 0; i < rows; i++) {
       const z = -length / 2 + (i / (rows - 1)) * length
-      arr.push({ pos: [width / 2 + 2.5, 0.3, z], key: `l${i}` })
-      arr.push({ pos: [-width / 2 - 2.5, 0.3, z], key: `r${i}` })
+      for (const sx of [-1, 1]) {
+        const x = sx * (width / 2 + 2.5)
+        posts.push(m.clone().setPosition(x, 0.3, z))
+        lamps.push(m.clone().setPosition(x, 0.66, z))
+      }
     }
-    return arr
+    for (const sx of [-1, 1]) {
+      for (let i = 0; i < 9; i++) {
+        posts.push(m.clone().setPosition(sx * width * 2.2, 5, -length / 2 + 30 + i * 48))
+      }
+    }
+    return {
+      postGeo: new THREE.CylinderGeometry(0.1, 0.13, 0.6, 6),
+      lampGeo: new THREE.SphereGeometry(0.14, 8, 8),
+      postMesh: new THREE.MeshStandardMaterial({ color: '#5a6068', metalness: 0.8, roughness: 0.4 }),
+      lampMesh: new THREE.MeshStandardMaterial({
+        color: '#ffd9a0', emissive: '#ffb85c', emissiveIntensity: 1.8, toneMapped: false
+      }),
+      setMatrices: { posts, lamps }
+    }
   }, [length, width])
+
+  React.useEffect(() => {
+    const post = postRef.current
+    const lamp = lampRef.current
+    if (post) {
+      setMatrices.posts.forEach((m, i) => post.setMatrixAt(i, m))
+      post.instanceMatrix.needsUpdate = true
+    }
+    if (lamp) {
+      setMatrices.lamps.forEach((m, i) => lamp.setMatrixAt(i, m))
+      lamp.instanceMatrix.needsUpdate = true
+    }
+  }, [setMatrices])
+
+  React.useEffect(() => {
+    return () => {
+      postGeo.dispose(); lampGeo.dispose(); postMesh.dispose(); lampMesh.dispose()
+    }
+  }, [postGeo, lampGeo, postMesh, lampMesh])
 
   return (
     // Rotated so the runway centreline runs along X, matching the
@@ -80,37 +124,20 @@ export default function Runway({ length = 420, width = 30 }) {
         <meshStandardMaterial color="#4a5d43" metalness={0} roughness={1} />
       </mesh>
 
-      {lights.map((l) => (
-        <group key={l.key} position={l.pos}>
-          <mesh>
-            <cylinderGeometry args={[0.09, 0.12, 0.6, 6]} />
-            <meshStandardMaterial color="#5a6068" metalness={0.8} roughness={0.4} />
-          </mesh>
-          <mesh position={[0, 0.36, 0]}>
-            <sphereGeometry args={[0.14, 8, 8]} />
-            <meshStandardMaterial
-              color="#ffd9a0"
-              emissive="#ffb85c"
-              emissiveIntensity={1.6}
-              toneMapped={false}
-            />
-          </mesh>
-        </group>
-      ))}
+      <instancedMesh
+        ref={postRef}
+        args={[postGeo, postMesh, setMatrices.posts.length]}
+      />
+      <instancedMesh
+        ref={lampRef}
+        args={[lampGeo, lampMesh, setMatrices.lamps.length]}
+      />
 
       {[-1, 1].map((side) => (
-        <group key={side} position={[side * (width * 2.2), 0, 0]}>
-          {Array.from({ length: 9 }).map((_, i) => (
-            <mesh key={i} position={[0, 5, -length / 2 + 30 + i * 48]}>
-              <boxGeometry args={[1.2, 10, 1.2]} />
-              <meshStandardMaterial color="#7d8590" metalness={0.6} roughness={0.5} />
-            </mesh>
-          ))}
-          <mesh position={[0, 10.4, 0]}>
-            <boxGeometry args={[1.6, 0.8, length * 0.9]} />
-            <meshStandardMaterial color="#2e3440" metalness={0.4} roughness={0.6} />
-          </mesh>
-        </group>
+        <mesh key={side} position={[side * (width * 2.2), 10.4, 0]}>
+          <boxGeometry args={[1.6, 0.8, length * 0.9]} />
+          <meshStandardMaterial color="#2e3440" metalness={0.4} roughness={0.6} />
+        </mesh>
       ))}
     </group>
   )
