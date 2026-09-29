@@ -12,6 +12,8 @@ import AircraftShowcase from './components/sections/AircraftShowcase'
 import MountainFlight from './components/sections/MountainFlight'
 import Stats from './components/sections/Stats'
 import Safety from './components/sections/Safety'
+import CompanySection from './components/sections/CompanySection'
+import SupportSection from './components/sections/SupportSection'
 import RoyalClub from './components/royal-club/RoyalClub'
 import SpecialAssistance from './components/assistance/SpecialAssistance'
 import Holidays from './components/holidays/Holidays'
@@ -21,6 +23,7 @@ import Footer from './components/footer/Footer'
 import BookingPanel from './components/booking/BookingPanel'
 import BookingModal from './components/booking/BookingModal'
 import BookingResults from './components/booking/BookingResults'
+import InfoModals from './components/ui/InfoModals'
 import { useReducedMotion } from './hooks/useReducedMotion'
 import { useResponsive3D } from './hooks/useResponsive3D'
 import { useReveal } from './hooks/useReveal'
@@ -41,6 +44,7 @@ export default function App() {
   const [bookingOpen, setBookingOpen] = useState(false)
   const [activeDestination, setActiveDestination] = useState(null)
   const [searchResult, setSearchResult] = useState(null)
+  const [modalKey, setModalKey] = useState(null)
   const [webglOk] = useState(detectWebGL)
 
   const progressRef = useRef(0)
@@ -99,6 +103,23 @@ export default function App() {
 
   const openBooking = useCallback(() => setBookingOpen(true), [])
   const closeBooking = useCallback(() => setBookingOpen(false), [])
+
+  // Single resolver for every internal target on the site. A target of the
+  // form `modal:<key>` opens a dialog; anything else scrolls to an anchor.
+  // There is no third path, so no link can end up inert.
+  const navigate = useCallback((target) => {
+    if (!target) return
+    if (target.startsWith('modal:')) {
+      setModalKey(target.slice(6))
+      return
+    }
+    const el = document.querySelector(target)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    else window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
+  const openModal = useCallback((key) => setModalKey(key), [])
+  const closeModal = useCallback(() => setModalKey(null), [])
 
   // Focusing a destination also brings its index card into view, so the
   // information is reachable without hunting for it.
@@ -173,7 +194,7 @@ export default function App() {
         </div>
       )}
 
-      <Navbar solid={navSolid} onBook={openBooking} />
+      <Navbar solid={navSolid} onBook={openBooking} onNavigate={navigate} />
 
       <main>
         <Hero started={!loading} onBook={openBooking} />
@@ -205,10 +226,12 @@ export default function App() {
         <MountainFlight onDiscover={openBooking} />
         <Stats />
         <Safety />
-        <RoyalClub />
-        <SpecialAssistance />
+        <CompanySection />
+        <RoyalClub onOpen={openModal} />
+        <SpecialAssistance onOpen={openModal} />
         <Holidays />
         <Stories />
+        <SupportSection />
         <FlightStatus />
 
         <section className="ba-cta ba-section--transparent" aria-label="Call to action">
@@ -243,9 +266,10 @@ export default function App() {
         </section>
       </main>
 
-      <Footer />
+      <Footer onNavigate={navigate} />
 
       <BookingModal open={bookingOpen} onClose={closeBooking} onSearch={handleSearch} />
+      <InfoModals openKey={modalKey} onClose={closeModal} />
     </div>
   )
 }

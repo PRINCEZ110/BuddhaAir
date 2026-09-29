@@ -44,7 +44,7 @@ const benefits = [
   }
 ]
 
-export default function RoyalClub() {
+export default function RoyalClub({ onOpen }) {
   const cardRef = useRef(null)
 
   const handleMove = (e) => {
@@ -112,7 +112,7 @@ export default function RoyalClub() {
               </div>
             ))}
             <div className="ba-reveal" style={{ transitionDelay: '0.35s' }}>
-              <button className="ba-btn ba-btn--primary" style={{ width: '100%' }}>
+              <button className="ba-btn ba-btn--primary" style={{ width: '100%' }} onClick={() => onOpen?.('royal-club')}>
                 Join Royal Club
               </button>
             </div>

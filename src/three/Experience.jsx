@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import Aircraft from './Aircraft'
+import AirportEnvironment from './AirportEnvironment'
 import Runway from './Runway'
 import Mountains from './Mountains'
 import Clouds from './Clouds'
@@ -117,6 +118,12 @@ export default function Experience({
 
       <Visibility progressRef={progressRef} range={[-0.02, 0.16]} reducedMotion={reducedMotion} unmount>
         <Runway />
+      </Visibility>
+
+      {/* Built environment: only meaningful while the camera is on the
+          ground, and it carries the dawn silhouette the hero needs. */}
+      <Visibility progressRef={progressRef} range={[-0.02, 0.075]} reducedMotion={reducedMotion} unmount>
+        <AirportEnvironment />
       </Visibility>
 
       <AircraftRig

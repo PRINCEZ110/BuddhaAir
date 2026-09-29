@@ -1,19 +1,15 @@
 import React, { useState } from 'react'
 import Logo from './Logo'
-import { navLinks } from '../../data/navigation'
+import { navLinks, moreLinks } from '../../data/navigation'
 
-export default function Navbar({ solid, onBook }) {
+export default function Navbar({ solid, onBook, onNavigate }) {
   const [open, setOpen] = useState(false)
+  const [more, setMore] = useState(false)
 
-  const handleNav = (e, href) => {
+  const go = (target) => {
     setOpen(false)
-    if (href === '#book') {
-      e.preventDefault()
-      onBook()
-      return
-    }
-    const el = document.querySelector(href)
-    if (el) el.scrollIntoView({ behavior: 'smooth' })
+    setMore(false)
+    onNavigate(target)
   }
 
   return (
@@ -24,10 +20,7 @@ export default function Navbar({ solid, onBook }) {
             href="#top"
             className="ba-nav__logo"
             aria-label="Buddha Air home"
-            onClick={(e) => {
-              e.preventDefault()
-              window.scrollTo({ top: 0, behavior: 'smooth' })
-            }}
+            onClick={(e) => { e.preventDefault(); go('#top') }}
           >
             <Logo />
           </a>
@@ -36,18 +29,52 @@ export default function Navbar({ solid, onBook }) {
             {navLinks.map((l) => (
               <a
                 key={l.id}
-                href={l.href}
+                href={l.target}
                 className="ba-nav__link"
-                onClick={(e) => handleNav(e, l.href)}
+                onClick={(e) => { e.preventDefault(); go(l.target) }}
               >
                 {l.label}
               </a>
             ))}
+            <div
+              className="ba-nav__more"
+              onMouseEnter={() => setMore(true)}
+              onMouseLeave={() => setMore(false)}
+            >
+              <button
+                className="ba-nav__link ba-nav__more-btn"
+                aria-expanded={more}
+                aria-haspopup="true"
+                onClick={() => setMore((v) => !v)}
+              >
+                More
+                <span className="ba-caret" aria-hidden="true" />
+              </button>
+              {more && (
+                <div className="ba-nav__menu" role="menu">
+                  {moreLinks.map((l) => (
+                    <a
+                      key={l.label}
+                      href={l.target.startsWith('modal') ? '#assistance' : l.target}
+                      role="menuitem"
+                      onClick={(e) => { e.preventDefault(); go(l.target) }}
+                    >
+                      {l.label}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
           </nav>
 
           <div className="ba-nav__actions">
-            <a href="#login" className="ba-nav__login" onClick={(e) => e.preventDefault()}>
-              Login
+            <a
+              href="https://www.buddhaair.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ba-nav__login"
+            >
+              Official site
             </a>
             <button className="ba-btn ba-btn--primary ba-nav__cta" onClick={onBook}>
               Book a Flight
@@ -64,22 +91,39 @@ export default function Navbar({ solid, onBook }) {
         </div>
       </header>
 
-      <div className={`ba-mobile-menu ${open ? 'ba-mobile-menu--open' : ''}`} aria-hidden={!open}>
-        {navLinks.map((l, i) => (
-          <a
-            key={l.id}
-            href={l.href}
-            className="ba-mobile-menu__link"
-            style={{ transitionDelay: open ? `${0.08 + i * 0.06}s` : '0s' }}
-            onClick={(e) => handleNav(e, l.href)}
-          >
-            {l.label}
-          </a>
-        ))}
-        <div className="ba-mobile-menu__cta">
-          <button className="ba-btn ba-btn--primary" style={{ width: '100%' }} onClick={() => { setOpen(false); onBook() }}>
-            Book a Flight
-          </button>
+      <div
+        className={`ba-mobile-menu ${open ? 'ba-mobile-menu--open' : ''}`}
+        id="mobile-menu"
+        hidden={!open}
+      >
+        <div className="ba-mobile-menu__inner">
+          {navLinks.map((l, i) => (
+            <a
+              key={l.id}
+              href={l.target.startsWith('modal') ? '#assistance' : l.target}
+              className="ba-mobile-menu__link"
+              style={{ transitionDelay: open ? `${0.06 + i * 0.05}s` : '0s' }}
+              onClick={(e) => { e.preventDefault(); go(l.target) }}
+            >
+              {l.label}
+            </a>
+          ))}
+          <div className="ba-mobile-menu__more">
+            {moreLinks.map((l) => (
+              <a
+                key={l.label}
+                href={l.target.startsWith('modal') ? '#assistance' : l.target}
+                onClick={(e) => { e.preventDefault(); go(l.target) }}
+              >
+                {l.label}
+              </a>
+            ))}
+          </div>
+          <div className="ba-mobile-menu__cta">
+            <button className="ba-btn ba-btn--primary" style={{ width: '100%' }} onClick={() => { setOpen(false); onBook() }}>
+              Book a Flight
+            </button>
+          </div>
         </div>
       </div>
     </>

@@ -2,6 +2,7 @@ import React from 'react'
 
 const items = [
   {
+    key: 'special-needs',
     title: 'Special Needs',
     desc: 'Assistance for passengers with reduced mobility or specific requirements.',
     icon: (
@@ -12,6 +13,7 @@ const items = [
     )
   },
   {
+    key: 'pets',
     title: 'Traveling With Pets',
     desc: 'Guidance for bringing your companion along safely and comfortably.',
     icon: (
@@ -25,6 +27,7 @@ const items = [
     )
   },
   {
+    key: 'medical',
     title: 'Medical Information',
     desc: 'What to know if you are travelling with a medical condition.',
     icon: (
@@ -36,6 +39,7 @@ const items = [
     )
   },
   {
+    key: 'pregnancy',
     title: 'Pregnant Women',
     desc: 'Travel guidance for expectant mothers at every stage of pregnancy.',
     icon: (
@@ -46,6 +50,7 @@ const items = [
     )
   },
   {
+    key: 'children',
     title: 'Traveling With Children',
     desc: 'Making family travel smooth, from infants to young travellers.',
     icon: (
@@ -57,6 +62,7 @@ const items = [
     )
   },
   {
+    key: 'minors',
     title: 'Unaccompanied Minors',
     desc: 'Dedicated support for children travelling without a guardian.',
     icon: (
@@ -68,7 +74,7 @@ const items = [
   }
 ]
 
-export default function SpecialAssistance() {
+export default function SpecialAssistance({ onOpen }) {
   return (
     <section className="ba-section ba-section--light" id="assistance" aria-label="Special assistance">
       <div className="ba-container">
@@ -78,14 +84,20 @@ export default function SpecialAssistance() {
             Every Passenger, <em>Every Need</em>
           </h2>
           <p className="ba-section__desc">
-            We are here to make your journey comfortable. Explore the support
-            available for your specific travel situation.
+            Select a category to see what to arrange before you travel.
+            Specific policies are set by the operator and confirmed directly
+            with the airline.
           </p>
         </div>
 
         <div className="ba-assist-grid">
           {items.map((item, i) => (
-            <button key={item.title} className="ba-assist-card ba-reveal" style={{ transitionDelay: `${(i % 3) * 0.08}s` }}>
+            <button
+              key={item.title}
+              className="ba-assist-card ba-reveal"
+              style={{ transitionDelay: `${(i % 3) * 0.08}s` }}
+              onClick={() => onOpen?.(item.key)}
+            >
               <span className="ba-assist-card__icon">{item.icon}</span>
               <span>
                 <span className="ba-assist-card__title">{item.title}</span>
