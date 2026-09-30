@@ -38,6 +38,8 @@ const tier = await page.evaluate(() => window.__baTier?.tier ?? '?')
 console.log(`tier: ${tier}   airframe: ${model}`)
 console.log(`assets fetched:\n  ${fetched.length ? fetched.join('\n  ') : '(none)'}`)
 
+const env = await page.evaluate(() => window.__baEnv || null)
+
 const failures = []
 const beats = [
   { name: 'glb_runway', t: 0.10 },
@@ -47,6 +49,7 @@ const beats = [
 
 if (tier !== 'high') failures.push(`tier was "${tier}", expected "high"`)
 if (model !== 'glb') failures.push(`airframe was "${model}", expected "glb"`)
+if (!env) failures.push('environment map was never installed')
 if (!fetched.length) failures.push('GLB was never fetched')
 if (fetched.some((f) => !f.startsWith('200'))) failures.push(`bad asset status: ${fetched.join(', ')}`)
 

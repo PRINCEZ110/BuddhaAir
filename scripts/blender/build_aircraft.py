@@ -114,6 +114,7 @@ def build_materials():
         'red': make_material('BA Red', (0.68, 0.05, 0.07), 0.30, 0.30),
         'dark': make_material('BA Dark', (0.04, 0.05, 0.07), 0.65, 0.22),
         'glass': make_material('BA Glass', (0.42, 0.58, 0.72), 0.0, 0.05),
+        'window': make_material('BA Window', (0.03, 0.05, 0.08), 0.0, 0.12),
         'metal': make_material('BA Metal', (0.72, 0.74, 0.78), 0.95, 0.24),
         'rubber': make_material('BA Rubber', (0.05, 0.05, 0.06), 0.0, 0.92),
         'nav': None,
@@ -195,6 +196,53 @@ def build_surface_patch(name, x0, x1, y0, y1, raise_=0.02, nx=8, ny=5):
             c = (i + 1) * (ny + 1) + j
             d = c + 1
             faces.append((a, c, d, b) if flip else (a, b, d, c))
+    return new_mesh_object(name, verts, faces)
+
+
+def fuse_surface_y(x, z, raise_=0.0):
+    """Lateral position of the fuselage side skin at (x, z) — the inverse of
+    the ring parameterisation in build_fuselage."""
+    r, cz = fuse_radius_at(x)
+    rz = r * 1.02
+    ratio = max(min((z - cz) / max(rz, 1e-6), 1.0), -1.0)
+    a = math.asin(ratio)
+    ry = r * (1.0 + 0.02 * math.cos(a * 2.0))
+    return math.cos(a) * ry + raise_
+
+
+def build_cabin_windows(name, x0=-9.0, x1=9.3, pitch=0.62, w=0.42, h=0.32,
+                        zc=0.34, raise_=0.015):
+    """Cabin glazing for both sides as ONE mesh.
+
+    The livery function used to fake this by breaking a material slot at the
+    window pitch, but the fuselage only has ~1.7 m faces against a 0.62 m
+    pitch, so the band never resolved into panes and read as a painted stripe.
+    """
+    verts = []
+    faces = []
+    nx, ny = 3, 2
+    count = int((x1 - x0) / pitch) + 1
+    for side in (1.0, -1.0):
+        for n in range(count):
+            xc = x0 + n * pitch
+            if xc + w * 0.5 > x1:
+                break
+            base = len(verts)
+            for i in range(nx + 1):
+                x = xc - w * 0.5 + w * i / nx
+                for j in range(ny + 1):
+                    z = zc - h * 0.5 + h * j / ny
+                    verts.append((x, side * fuse_surface_y(x, z, raise_), z))
+            for i in range(nx):
+                for j in range(ny):
+                    a = base + i * (ny + 1) + j
+                    b = a + 1
+                    c = base + (i + 1) * (ny + 1) + j
+                    d = c + 1
+                    # +z then +x gives +y (outboard) on the port side; the
+                    # starboard side needs the opposite order or it gets
+                    # back-face culled, since glTF materials are single-sided.
+                    faces.append((a, b, d, c) if side > 0 else (a, c, d, b))
     return new_mesh_object(name, verts, faces)
 
 
@@ -517,7 +565,6 @@ def assign_fuselage_livery(ob, mats):
     ob.data.materials.append(mats['paint'])   # 0
     ob.data.materials.append(mats['belly'])   # 1
     ob.data.materials.append(mats['red'])     # 2
-    ob.data.materials.append(mats['dark'])    # 3
 
     for poly in ob.data.polygons:
         c = poly.center
@@ -529,12 +576,9 @@ def assign_fuselage_livery(ob, mats):
         # cheatline running the length of the cabin
         if -0.62 < z < -0.30 and abs(y) > 0.4 and -9.6 < x < 10.4:
             mat = 2
-        # cabin window band
-        if 0.16 < z < 0.52 and abs(y) > 0.95 and -9.2 < x < 9.6:
-            # window pitch ~0.62 m so the band breaks into panes
-            f = ((x + 9.2) % 0.62) / 0.62
-            if f < 0.52:
-                mat = 3
+        # Cabin glazing is real geometry now (build_cabin_windows); the old
+        # slot-modulation here could not resolve a 0.62 m window pitch onto
+        # 1.7 m faces and just painted a stripe.
         ob.data.polygons[poly.index].material_index = mat
 
 
@@ -661,6 +705,12 @@ def build(out_path):
         assign_by_slot(sw, mats['glass'])
         shade_smooth(sw, 45.0)
         parts.append(sw)
+
+    # Cabin glazing: one mesh carrying every pane on both sides.
+    windows = build_cabin_windows('CabinWindows')
+    assign_by_slot(windows, mats['window'])
+    shade_smooth(windows, 45.0)
+    parts.append(windows)
 
     # nav lights
     for (name, loc, col) in (

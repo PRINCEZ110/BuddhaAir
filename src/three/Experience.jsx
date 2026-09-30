@@ -9,6 +9,7 @@ import Clouds from './Clouds'
 import Cabin from './Cabin'
 import NepalTerrain from './NepalTerrain'
 import SkyDome from './SkyDome'
+import EnvironmentMap from './EnvironmentMap'
 import { HimalayaPeaks } from './Mountains'
 import CameraController from './CameraController'
 import { getAircraftState, isAircraftActive } from './timeline/aircraftPath'
@@ -94,6 +95,12 @@ export default function Experience({
       <fogExp2 attach="fog" args={['#c8d4e4', 0.00024]} />
       <CameraController progressRef={progressRef} reducedMotion={reducedMotion} focusRef={focusRef} />
       <SkyDome progressRef={progressRef} reducedMotion={reducedMotion} />
+      {/* Low tier skips it: without an env map the airframe still reads,
+          just flatter — and it is the one thing here that costs a periodic
+          PMREM rebuild rather than nothing. */}
+      {quality !== 'low' && (
+        <EnvironmentMap progressRef={progressRef} reducedMotion={reducedMotion} intensity={0.55} />
+      )}
 
       <directionalLight
         name="ba-sun"

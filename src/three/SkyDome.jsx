@@ -38,7 +38,10 @@ const skyFragment = /* glsl */ `
   }
 `
 
-const SKY_STATES = [
+// Shared with EnvironmentMap so reflections sample the same palette the
+// visible sky is drawn from — otherwise the airframe reflects a sky that
+// is not on screen.
+export const SKY_STATES = [
   { t: 0.0, zenith: '#5a8ac4', horizon: '#e8c9a0', sun: '#ffb36b' },
   { t: 0.11, zenith: '#4a8ad4', horizon: '#f0d8b0', sun: '#ffd9a8' },
   { t: 0.23, zenith: '#3a7ad0', horizon: '#d8e4f0', sun: '#e8f0ff' },
