@@ -11,7 +11,9 @@
     "verify:responsive": "node scripts/responsive-test.mjs",
     "verify:interactions": "node scripts/interaction-test.mjs",
     "verify:scroll": "node scripts/screenshot-test.mjs",
-    "verify:layout": "node scripts/measure.mjs"
+    "verify:layout": "node scripts/measure.mjs",
+    "verify:perf": "node scripts/perf-test.mjs",
+    "verify:glb": "node scripts/glb-check.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.114.0",

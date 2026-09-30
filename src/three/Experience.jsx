@@ -82,6 +82,7 @@ function Visibility({ progressRef, range, reducedMotion, unmount = false, childr
 export default function Experience({
   progressRef,
   quality,
+  tierConfig,
   reducedMotion,
   activeDestination,
   onSelectDestination,
@@ -99,8 +100,8 @@ export default function Experience({
         position={[180, 140, -220]}
         intensity={2.6}
         color="#ffb36b"
-        castShadow={quality === 'high'}
-        shadow-mapSize={[1024, 1024]}
+        castShadow={tierConfig ? tierConfig.shadows : quality === 'high'}
+        shadow-mapSize={[(tierConfig && tierConfig.shadowMapSize) || 1024, (tierConfig && tierConfig.shadowMapSize) || 1024]}
         shadow-camera-left={-90}
         shadow-camera-right={90}
         shadow-camera-top={90}

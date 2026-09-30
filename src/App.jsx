@@ -28,6 +28,8 @@ import { useReducedMotion } from './hooks/useReducedMotion'
 import { useResponsive3D } from './hooks/useResponsive3D'
 import { useReveal } from './hooks/useReveal'
 import { detectWebGL } from './utils/performance'
+import { TIERS } from './config/quality'
+import { measureAnchors, mapScrollToT, mapTToScroll } from './utils/scrollMap'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -51,8 +53,21 @@ export default function App() {
   const focusRef = useRef({ active: false, x: 0, y: 0, z: 0 })
   const interactiveRef = useRef({ active: false, yaw: 0, pitch: 0, zoom: 1 })
   const reducedMotion = useReducedMotion()
-  const { quality } = useResponsive3D()
+  const { quality, config } = useResponsive3D()
+  const tierCfg = config || TIERS[quality]
   const revealRef = useReveal()
+
+  // Dev-only readback of the scroll timeline so the regression suites can
+  // assert the camera actually reached the beat each stop is named after,
+  // and can address a scroll position by `t` instead of a raw fraction
+  // (which drifts whenever a section changes height).
+  if (import.meta.env.DEV && !window.__baProgress) {
+    Object.defineProperty(window, '__baProgress', {
+      get: () => progressRef.current,
+      configurable: true
+    })
+    window.__baScrollForT = (t) => mapTToScroll(t, measureAnchors())
+  }
 
   useEffect(() => {
     let progress = 0
@@ -78,15 +93,38 @@ export default function App() {
     if (loading) return
 
     const ctx = gsap.context(() => {
-      gsap.to(progressRef, {
-        current: 1,
+      // Scroll is animated as before (one scrubbed tween over the whole
+      // document). Only the write target changed: the raw document fraction
+      // is converted to a section-anchored t, so every authored camera,
+      // chapter and visibility keyframe keeps tracking its own section when
+      // content above or below it changes height.
+      const state = { pts: measureAnchors(), p: 0 }
+      const proxy = { p: 0 }
+
+      const write = () => {
+        const maxScroll = Math.max(
+          1,
+          document.documentElement.scrollHeight - window.innerHeight
+        )
+        state.p = proxy.p
+        progressRef.current = mapScrollToT(proxy.p * maxScroll, state.pts)
+      }
+
+      gsap.to(proxy, {
+        p: 1,
         ease: 'none',
+        onUpdate: write,
         scrollTrigger: {
           trigger: document.documentElement,
           start: 'top top',
           end: 'bottom bottom',
           scrub: reducedMotion ? true : 0.8,
-          invalidateOnRefresh: true
+          invalidateOnRefresh: true,
+          onRefresh: (self) => {
+            state.pts = measureAnchors()
+            proxy.p = self.progress
+            write()
+          }
         }
       })
 
@@ -167,10 +205,10 @@ export default function App() {
       {webglOk && !loading && (
         <div className="ba-canvas-wrap" aria-hidden="true">
           <Canvas
-            shadows={quality === 'high'}
-            dpr={quality === 'low' ? 1 : quality === 'medium' ? 1.5 : 2}
+            shadows={tierCfg.shadows ? (tierCfg.shadowType === 'PCFSoft' ? 'soft' : true) : false}
+            dpr={[1, tierCfg.dpr]}
             camera={{ position: [20, 2.4, 30], fov: 42, near: 0.5, far: 6000 }}
-            gl={{ antialias: quality !== 'low', powerPreference: 'high-performance' }}
+            gl={{ antialias: tierCfg.antialias, powerPreference: 'high-performance' }}
             onCreated={({ gl }) => {
               gl.toneMapping = THREE.ACESFilmicToneMapping
               gl.toneMappingExposure = 1.25
@@ -182,6 +220,7 @@ export default function App() {
               <Experience
                 progressRef={progressRef}
                 quality={quality}
+                tierConfig={tierCfg}
                 reducedMotion={reducedMotion}
                 activeDestination={activeDestination}
                 onSelectDestination={handleDestinationSelect}

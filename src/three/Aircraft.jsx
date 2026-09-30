@@ -1,6 +1,7 @@
-import React, { useMemo, useRef } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { useAircraftGLB } from './useAircraftGLB'
 
 const RED = '#d42b2b'
 const WHITE = '#f4f5f7'
@@ -190,6 +191,48 @@ export default function Aircraft({ detail = 'high', spinRef, interactiveRef, alt
   const pivot = useRef()
   const contactRef = useRef()
 
+  // The Blender-built GLB takes over the moment it arrives; until then (and
+  // for the low tier) the procedural airframe below is what flies. One clone
+  // per mount so the cached source scene stays pristine while geometry and
+  // materials are shared rather than duplicated.
+  const glbScene = useAircraftGLB(detail !== 'low')
+  const glbModel = useMemo(() => {
+    if (!glbScene) return null
+    const clone = glbScene.clone(true)
+    const propNodes = []
+    clone.traverse((o) => {
+      if (o.isMesh) {
+        o.castShadow = true
+        o.receiveShadow = false
+        if (o.material && 'envMapIntensity' in o.material) o.material.envMapIntensity = 1.25
+      }
+      if (o.name.startsWith('Prop.')) propNodes.push(o)
+      if (o.name.startsWith('Nav.') && o.isMesh && o.material) {
+        // Clone first: the exporter shares one dark material across the nav
+        // lights, props and gear, so a direct edit would light those too.
+        o.material = o.material.clone()
+        o.material.emissive = new THREE.Color('#ff3b3b')
+        o.material.emissiveIntensity = 3
+        o.material.toneMapped = false
+      }
+      if (o.name.startsWith('Windshield.') && o.material) {
+        o.material = o.material.clone()
+        o.material.transparent = true
+        o.material.opacity = 0.55
+        o.material.roughness = 0.05
+        o.material.metalness = 0.05
+      }
+    })
+    propsRef.current = propNodes
+    return clone
+  }, [glbScene])
+
+  // DEV-only readback so the test scripts can assert which airframe actually
+  // rendered instead of guessing from pixels.
+  useEffect(() => {
+    if (import.meta.env.DEV) window.__baAircraftModel = glbModel ? 'glb' : 'procedural'
+  }, [glbModel])
+
   const livery = useMemo(() => createLiveryTexture(), [])
   const fuselageGeo = useMemo(() => buildFuselageGeometry(), [])
   const wingGeo = useMemo(() => buildWingGeometry(13.4, 3.4, 1.7, 0.42, 0.2, 1.6, 0.55), [])
@@ -279,6 +322,10 @@ export default function Aircraft({ detail = 'high', spinRef, interactiveRef, alt
       {/* Interactive pivot: drag/zoom rotate and scale the whole airframe
           without disturbing the rig that flies it along the path. */}
       <group ref={pivot}>
+      {glbModel ? (
+        <primitive object={glbModel} />
+      ) : (
+      <>
       <mesh geometry={fuselageGeo} material={paintMat} castShadow />
 
       <mesh geometry={wingGeo} material={wingMat} position={[0.4, 1.15, 0.9]} castShadow />
@@ -298,16 +345,6 @@ export default function Aircraft({ detail = 'high', spinRef, interactiveRef, alt
           <meshStandardMaterial color={RED} metalness={0.3} roughness={0.4} />
         </mesh>
       </group>
-
-      {/* Ground contact: without this the aeroplane reads as floating. It
-          only exists near the ground — a dark ellipse trailing an airborne
-          aeroplane is worse than no shadow at all. */}
-      {detail !== 'low' && (
-        <mesh ref={contactRef} position={[0, -1.52, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2}>
-          <circleGeometry args={[7.5, 24]} />
-          <meshBasicMaterial color="#05090f" transparent opacity={0} depthWrite={false} />
-        </mesh>
-      )}
 
       {[-1, 1].map((side) => (
         <group key={side} position={[1.6, 1.35, side * 4.6]}>
@@ -406,6 +443,19 @@ export default function Aircraft({ detail = 'high', spinRef, interactiveRef, alt
             <meshStandardMaterial color="#c9ced6" metalness={0.35} roughness={0.55} />
           </mesh>
         ))}
+      </>
+      )}
+
+      {/* Ground contact: without this the aeroplane reads as floating. It
+          only exists near the ground — a dark ellipse trailing an airborne
+          aeroplane is worse than no shadow at all. Lives outside the
+          procedural/GLB swap so the shipped model gets it too. */}
+      {detail !== 'low' && (
+        <mesh ref={contactRef} position={[0, -1.52, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2}>
+          <circleGeometry args={[7.5, 24]} />
+          <meshBasicMaterial color="#05090f" transparent opacity={0} depthWrite={false} />
+        </mesh>
+      )}
       </group>
     </group>
   )
