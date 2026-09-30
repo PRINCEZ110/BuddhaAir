@@ -28,11 +28,16 @@ const skyFragment = /* glsl */ `
     col += uSunColor * sunAmt * 1.6;
     col += uSunColor * glow * 0.22;
 
-    float below = smoothstep(0.0, -0.15, dir.y);
+    // Reached full darkness by only -8.6 degrees below the horizon, so any
+    // camera pitched down a handful of degrees at a beat where no terrain is
+    // mounted (the fleet showcase) dropped straight into a void. Widened so
+    // looking down reads as atmospheric haze; the ground beats still have
+    // terrain sitting in front of it.
+    float below = smoothstep(0.0, -0.55, dir.y);
     // Desaturate toward a neutral dark ground tone; reusing the warm
     // horizon colour here produced a muddy olive cast.
     float lum = dot(uHorizon, vec3(0.299, 0.587, 0.114));
-    col = mix(col, vec3(lum * 0.22, lum * 0.25, lum * 0.3), below);
+    col = mix(col, vec3(lum * 0.30, lum * 0.34, lum * 0.42), below);
 
     gl_FragColor = vec4(col, 1.0);
   }

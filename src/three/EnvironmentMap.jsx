@@ -58,7 +58,7 @@ function buildEquirect(sky) {
   const col = new THREE.Color()
   const ground = new THREE.Color()
   const lum = 0.299 * sky.horizon.r + 0.587 * sky.horizon.g + 0.114 * sky.horizon.b
-  ground.setRGB(lum * 0.22, lum * 0.25, lum * 0.3)
+  ground.setRGB(lum * 0.30, lum * 0.34, lum * 0.42)
 
   let p = 0
   for (let y = 0; y < H; y++) {
@@ -83,7 +83,7 @@ function buildEquirect(sky) {
       col.g += sky.sun.g * sunAmt * 1.6 + sky.sun.g * glow * 0.22
       col.b += sky.sun.b * sunAmt * 1.6 + sky.sun.b * glow * 0.22
 
-      if (dirY < 0) col.lerp(ground, smoothstepFall(dirY, 0, -0.15))
+      if (dirY < 0) col.lerp(ground, smoothstepFall(dirY, 0, -0.55))
 
       data[p++] = linearToSrgb(clamp01(col.r)) * 255
       data[p++] = linearToSrgb(clamp01(col.g)) * 255

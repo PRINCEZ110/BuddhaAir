@@ -28,10 +28,13 @@ const KEYFRAMES = [
   { t: 0.400, pos: [30, 195, 185], look: [10, 0, 0], fov: 50 },
   { t: 0.470, pos: [10, 165, 155], look: [0, 0, 0], fov: 48 },
   { t: 0.537, pos: [30, 150, 150], look: [10, 0, 0], fov: 48 },
-  // Fleet showcase runs 0.575 - 0.628: orbit the aircraft itself.
-  { t: 0.580, orbit: [42, 20, 48], fov: 46 },
-  { t: 0.610, orbit: [-40, 22, 52], fov: 44 },
-  { t: 0.628, orbit: [-26, 12, 38], fov: 46 },
+  // Fleet showcase runs 0.575 - 0.628: orbit the aircraft itself. Elevation
+  // is deliberately shallow — at +20/+22 the camera pitched ~19 degrees down,
+  // and with no terrain mounted at this beat the lower two thirds of the
+  // frame was bare ground tone. Most of the frame is sky now.
+  { t: 0.580, orbit: [42, 11, 48], fov: 46 },
+  { t: 0.610, orbit: [-40, 11, 52], fov: 44 },
+  { t: 0.628, orbit: [-26, 8, 38], fov: 46 },
   // Mountain flight 0.628 - 0.669. The camera sits at the window seat and
   // looks out over the ridge, which lives at -Z.
   { t: 0.648, pos: [268, 132, 24], look: [352, 128, -520], fov: 60 },
