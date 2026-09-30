@@ -39,6 +39,7 @@ console.log(`tier: ${tier}   airframe: ${model}`)
 console.log(`assets fetched:\n  ${fetched.length ? fetched.join('\n  ') : '(none)'}`)
 
 const env = await page.evaluate(() => window.__baEnv || null)
+const mats = await page.evaluate(() => window.__baMaterials || null)
 
 const failures = []
 const beats = [
@@ -50,6 +51,16 @@ const beats = [
 if (tier !== 'high') failures.push(`tier was "${tier}", expected "high"`)
 if (model !== 'glb') failures.push(`airframe was "${model}", expected "glb"`)
 if (!env) failures.push('environment map was never installed')
+if (!mats) failures.push('material readback missing')
+else {
+  console.log(
+    `materials: meshes=${mats.meshes} physical=${mats.physical} clearcoat=${mats.clearcoat}`
+  )
+  // A material name that stops matching the upgrade regex would fail
+  // silently — this is the only thing that catches it.
+  if (mats.physical < 4) failures.push(`only ${mats.physical} physical materials, expected >=4`)
+  if (mats.clearcoat < 4) failures.push(`only ${mats.clearcoat} clearcoat materials, expected >=4`)
+}
 if (!fetched.length) failures.push('GLB was never fetched')
 if (fetched.some((f) => !f.startsWith('200'))) failures.push(`bad asset status: ${fetched.join(', ')}`)
 

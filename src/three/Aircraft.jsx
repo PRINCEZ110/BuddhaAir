@@ -200,11 +200,52 @@ export default function Aircraft({ detail = 'high', spinRef, interactiveRef, alt
     if (!glbScene) return null
     const clone = glbScene.clone(true)
     const propNodes = []
+    // clone(true) SHARES materials with the cached source scene, so every
+    // upgrade has to build a fresh material — mutating in place would rewrite
+    // the cache and any later remount.
+    const upgraded = new Map()
+    const phys = (src, extra) => {
+      const hit = upgraded.get(src.uuid)
+      if (hit) return hit
+      const m = new THREE.MeshPhysicalMaterial({
+        name: src.name,
+        color: src.color ? src.color.clone() : new THREE.Color('#ffffff'),
+        map: src.map || null,
+        metalness: src.metalness ?? 0,
+        roughness: src.roughness ?? 0.5,
+        envMapIntensity: 1.25,
+        ...extra
+      })
+      upgraded.set(src.uuid, m)
+      return m
+    }
+
     clone.traverse((o) => {
       if (o.isMesh) {
         o.castShadow = true
         o.receiveShadow = false
-        if (o.material && 'envMapIntensity' in o.material) o.material.envMapIntensity = 1.25
+        const n = (o.material && o.material.name) || ''
+        if (/^BA (Paint|Belly|Red)$/.test(n)) {
+          // Painted aluminium: a clearcoat layer over the base colour is what
+          // makes a fuselage read as painted metal rather than plastic. It is
+          // far cheaper than transmission, which needs a whole extra scene pass.
+          o.material = phys(o.material, { clearcoat: 0.7, clearcoatRoughness: 0.14 })
+        } else if (n === 'BA Window' || n === 'BA Glass') {
+          // Cockpit and cabin glass from outside is effectively opaque and
+          // very glossy. Left translucent it blended with the white shell
+          // behind it and washed out; transmission would buy nothing here.
+          o.material = phys(o.material, {
+            roughness: 0.04,
+            metalness: 0.0,
+            clearcoat: 1,
+            clearcoatRoughness: 0.03,
+            envMapIntensity: 2.4,
+            transparent: false,
+            opacity: 1
+          })
+        } else if (o.material && 'envMapIntensity' in o.material) {
+          o.material.envMapIntensity = 1.25
+        }
       }
       if (o.name.startsWith('Prop.')) propNodes.push(o)
       if (o.name.startsWith('Nav.') && o.isMesh && o.material) {
@@ -215,22 +256,32 @@ export default function Aircraft({ detail = 'high', spinRef, interactiveRef, alt
         o.material.emissiveIntensity = 3
         o.material.toneMapped = false
       }
-      if (o.name.startsWith('Windshield.') && o.material) {
-        o.material = o.material.clone()
-        o.material.transparent = true
-        o.material.opacity = 0.55
-        o.material.roughness = 0.05
-        o.material.metalness = 0.05
-      }
     })
     propsRef.current = propNodes
     return clone
   }, [glbScene])
 
   // DEV-only readback so the test scripts can assert which airframe actually
-  // rendered instead of guessing from pixels.
+  // rendered, and that the physical-material upgrades really applied — a
+  // material-name that stops matching would fail silently and still look
+  // like a pass.
   useEffect(() => {
-    if (import.meta.env.DEV) window.__baAircraftModel = glbModel ? 'glb' : 'procedural'
+    if (!import.meta.env.DEV) return
+    const s = { model: glbModel ? 'glb' : 'procedural', meshes: 0, physical: 0, clearcoat: 0, names: [] }
+    if (glbModel) {
+      glbModel.traverse((o) => {
+        if (!o.isMesh || !o.material) return
+        const list = Array.isArray(o.material) ? o.material : [o.material]
+        for (const m of list) {
+          s.meshes++
+          if (m.isMeshPhysicalMaterial) s.physical++
+          if (m.clearcoat > 0) s.clearcoat++
+          s.names.push(m.name)
+        }
+      })
+    }
+    window.__baAircraftModel = s.model
+    window.__baMaterials = s
   }, [glbModel])
 
   const livery = useMemo(() => createLiveryTexture(), [])
