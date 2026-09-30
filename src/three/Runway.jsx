@@ -132,13 +132,6 @@ export default function Runway({ length = 420, width = 30 }) {
         ref={lampRef}
         args={[lampGeo, lampMesh, setMatrices.lamps.length]}
       />
-
-      {[-1, 1].map((side) => (
-        <mesh key={side} position={[side * (width * 2.2), 10.4, 0]}>
-          <boxGeometry args={[1.6, 0.8, length * 0.9]} />
-          <meshStandardMaterial color="#2e3440" metalness={0.4} roughness={0.6} />
-        </mesh>
-      ))}
     </group>
   )
 }
