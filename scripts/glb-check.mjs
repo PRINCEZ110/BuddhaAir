@@ -64,14 +64,31 @@ else {
 if (!fetched.length) failures.push('GLB was never fetched')
 if (fetched.some((f) => !f.startsWith('200'))) failures.push(`bad asset status: ${fetched.join(', ')}`)
 
+const stable = (p, q) => p.every((v, i) => Math.abs(v - q[i]) < 0.01)
+
+/**
+ * The camera rig damps toward its keyframes (3.4/s on progress, 4/s on the
+ * look target), so a fixed delay captures a transitional frame — which makes
+ * the visual audit disagree with the beat it claims to show. Poll until the
+ * rig has stopped moving, requiring three consecutive readings so a single
+ * dropped frame under SwiftShader cannot fake it.
+ */
+let prevA = null
+let prevB = null
+async function settleCamera() {
+  for (let i = 0; i < 48; i++) {
+    const p = await page.evaluate(() => window.__baCamera || null)
+    if (p && prevA && prevB && stable(p, prevA) && stable(p, prevB)) return true
+    prevB = prevA
+    prevA = p
+    await new Promise((r) => setTimeout(r, 350))
+  }
+  return false
+}
+
 for (const b of beats) {
   await page.evaluate((t) => window.scrollTo(0, window.__baScrollForT(t)), b.t)
-  await page.evaluate(() => new Promise((r) => {
-    let n = 0
-    const step = () => { if (++n >= 4) r(); else requestAnimationFrame(step) }
-    requestAnimationFrame(step)
-  }))
-  await new Promise((r) => setTimeout(r, 400))
+  if (!(await settleCamera())) failures.push(`${b.name}: camera never settled`)
   const t = await page.evaluate(() => window.__baProgress)
   await page.screenshot({ path: `${outDir}/${b.name}.png` })
   if (Math.abs(t - b.t) > 0.012) failures.push(`${b.name}: t=${t.toFixed(4)} want=${b.t}`)

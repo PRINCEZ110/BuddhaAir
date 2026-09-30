@@ -167,6 +167,13 @@ export default function CameraController({ progressRef, reducedMotion, focusRef 
     if (scene.background) {
       scene.background.set(ls.a.sky).lerp(_c2.set(ls.b.sky), ls.e)
     }
+    // DEV readback. The rig damps toward its keyframes (3.4/s on progress,
+    // 4/s on the look target), so a screenshot taken too soon captures a
+    // transitional frame rather than the beat being audited. The test
+    // scripts poll this until it stops moving.
+    if (import.meta.env.DEV) {
+      window.__baCamera = [camera.position.x, camera.position.y, camera.position.z]
+    }
     void plane
     void _c1
   })

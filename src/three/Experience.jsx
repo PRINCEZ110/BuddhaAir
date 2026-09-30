@@ -10,6 +10,7 @@ import Cabin from './Cabin'
 import NepalTerrain from './NepalTerrain'
 import SkyDome from './SkyDome'
 import EnvironmentMap from './EnvironmentMap'
+import Post from './Post'
 import { HimalayaPeaks } from './Mountains'
 import CameraController from './CameraController'
 import { getAircraftState, isAircraftActive } from './timeline/aircraftPath'
@@ -168,6 +169,9 @@ export default function Experience({
       <Visibility progressRef={progressRef} range={[0.60, 0.70]} reducedMotion={reducedMotion} unmount>
         <HimalayaPeaks quality={quality} reducedMotion={reducedMotion} />
       </Visibility>
+
+      {/* Last: takes over the frameloop when the tier allows any post at all. */}
+      <Post tierConfig={tierConfig} quality={quality} />
     </>
   )
 }

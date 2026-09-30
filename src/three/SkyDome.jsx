@@ -40,6 +40,17 @@ const skyFragment = /* glsl */ `
     col = mix(col, vec3(lum * 0.30, lum * 0.34, lum * 0.42), below);
 
     gl_FragColor = vec4(col, 1.0);
+
+    // A custom ShaderMaterial gets no tone mapping or colour-space transfer
+    // from three automatically — those arrive through chunks that must be
+    // included by hand. Without them the dome was written straight to the
+    // framebuffer as raw linear, so the default render path showed a darker
+    // sky than the post-processed one, where OutputPass applies both to every
+    // pixel including this one. Including them keeps the two paths in
+    // agreement; three compiles them out when rendering into an intermediate
+    // target, so nothing is applied twice.
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
   }
 `
 

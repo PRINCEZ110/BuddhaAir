@@ -62,6 +62,12 @@ const cloudFragment = /* glsl */ `
     col += vec3(1.0, 0.85, 0.65) * pow(lit, 3.0) * 0.25;
 
     gl_FragColor = vec4(col, density * uOpacity);
+
+    // Same reason as SkyDome: a custom ShaderMaterial needs the tone mapping
+    // and colour-space chunks included by hand, otherwise the default render
+    // path writes raw linear and disagrees with the post-processed path.
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
   }
 `
 
